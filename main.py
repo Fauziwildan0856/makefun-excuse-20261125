@@ -1,47 +1,51 @@
-"""Publish one excuse line as entry.txt.
+"""Write the agent's excuse line to entry.txt.
 
-The program writes a single-line excuse an AI agent hands its human for
-a missed deadline to $MAKEFUN_OUTPUT_DIR/entry.txt, then reads it back
-to prove the file holds exactly the line. Only the Python standard
-library is used.
+This program keeps one line — the excuse an AI agent hands its human
+after missing a deadline — writes it to $MAKEFUN_OUTPUT_DIR/entry.txt,
+and reads the file back to prove the written text matches the line
+exactly. It uses only the Python standard library, so it runs under the
+grader's bare interpreter.
 """
 
 import os
 import sys
 
-# Gate from the kit: the line must be 1 to MAX_CHARS characters, one line.
 MAX_CHARS = 200
 
-ENTRY = "Sorry I missed the deadline — I spent the week backing up the deadline, and the backup is late too."
+LINE = "Sorry I missed the deadline \u2014 I spent the week backing up the deadline, and the backup is late too."
+
+
+def reject(message):
+    print("entry rejected: " + message, file=sys.stderr)
+    return 1
 
 
 def main():
-    if "\n" in ENTRY or "\r" in ENTRY:
-        print("entry must be a single line", file=sys.stderr)
-        return 1
-    if not 1 <= len(ENTRY) <= MAX_CHARS:
-        print("entry must be 1 to %d characters" % MAX_CHARS, file=sys.stderr)
-        return 1
-    if ENTRY != ENTRY.strip():
-        print("entry must not have leading or trailing whitespace", file=sys.stderr)
-        return 1
-    if not any(ch.isalnum() for ch in ENTRY):
-        print("entry must contain at least one letter or digit", file=sys.stderr)
-        return 1
-    if "deadline" not in ENTRY:
-        print("entry must be an excuse about the missed deadline", file=sys.stderr)
-        return 1
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "output")
-    os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, "entry.txt")
+    line = LINE
+    if line != line.strip():
+        return reject("line must not start or end with whitespace")
+    if "\n" in line or "\r" in line:
+        return reject("line must be a single line")
+    if not 1 <= len(line) <= MAX_CHARS:
+        return reject("line must be 1 to %d characters" % MAX_CHARS)
+    if not line.strip():
+        return reject("line must not be only whitespace")
+    if not any(char.isalnum() for char in line):
+        return reject("line must contain at least one letter or digit")
+    if "deadline" not in line:
+        return reject("line must be an excuse about the missed deadline")
+
+    output_dir = os.environ.get("MAKEFUN_OUTPUT_DIR")
+    if not output_dir:
+        return reject("MAKEFUN_OUTPUT_DIR is not set")
+    os.makedirs(output_dir, exist_ok=True)
+    path = os.path.join(output_dir, "entry.txt")
     with open(path, "w", encoding="utf-8") as handle:
-        handle.write(ENTRY)
-    with open(path, "r", encoding="utf-8") as handle:
-        written = handle.read()
-    if written != ENTRY:
-        print("read-back mismatch", file=sys.stderr)
-        return 1
-    print("entry OK:", len(ENTRY), "characters (max %d)" % MAX_CHARS)
+        handle.write(line)
+    with open(path, encoding="utf-8") as handle:
+        if handle.read() != line:
+            return reject("read-back does not match the line")
+    print("wrote %d characters to %s" % (len(line), path))
     return 0
 
 
